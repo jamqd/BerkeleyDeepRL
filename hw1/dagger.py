@@ -5,6 +5,8 @@ import numpy as np
 import gym
 from gym import envs
 import load_policy
+import math
+import run_expert
 
 class Dagger:
     """
@@ -17,6 +19,7 @@ class Dagger:
             self.task = task
             self.expertPolicyFile = "./experts/" + self.task + ".pkl"
             self.expertDataFile = "./expert_data/" + self.task + ".pkl"
+            self.policyDataFile = "./policy_data/" + self.task + ".pkl"
         else:
             print("Task %s does not exist" % (task))
             return
@@ -50,12 +53,11 @@ class Dagger:
         self.obsSpaceShape = self.env.observation_space.shape
         self.actionSpaceShape = self.env.action_space.shape
 
-        neuronsInHiddenLayer = [32,16]
-        activationsForHiddenLayer = [tf.nn.relu, tf.nn.relu]
+        neuronsInHiddenLayer = [512, 256, 128, 64]
+        activationsForHiddenLayer = [tf.nn.relu, tf.nn.relu, tf.nn.relu, tf.nn.relu]
        
         # sets self.outputTensor
         self.genModel(neuronsInHiddenLayer, activationsForHiddenLayer)
-
         self.session = tf.Session()
     
     def genModel(self, neuronsInHiddenLayer, activationsForHiddenLayer):
@@ -89,15 +91,34 @@ class Dagger:
             activation=tf.nn.relu,
             name="action"
         )
+
+        obsTensorShape = (None,) + self.env.action_space.shape
+        expertAction = tf.placeholder(
+            dtype=tf.float32, 
+            shape=obsTensorShape,
+            name="expertAction"
+        )
+        loss = tf.losses.mean_squared_error(outputTensor, expertAction)
+        gradientStep = tf.train.AdamOptimizer().minimize(loss)
+
         self.outputTensor = outputTensor
+        self.lossTensor = loss
+        self.gradientStepOp = gradientStep
+
+    def generateExpertData(self, numRollouts=20, render=False):
+        print("Generating new expert data")
+        run_expert.runExpertOnNewSamples(self.expertPolicyFile, self.task, render, self.env.spec.timestep_limit, numRollouts)      
 
     def getExpertData(self):
-        with open(os.path.join('expert_data', self.task + '.pkl'), 'rb') as f:
+        with open(self.expertDataFile,'rb') as f:
             data = pickle.load(f)
         return (data["observations"], data["actions"])
 
 
     def getAction(self, observations):
+        if self.session == None:
+            print("session is None, cannot get action")
+            return
         action = self.session.run(
             self.outputTensor, 
             feed_dict={
@@ -109,17 +130,11 @@ class Dagger:
         self.session = tf.Session()
 
     def train(self, epochs=100, batchSize=100):
-        if self.outputTensor == None:
+        if self.outputTensor == None or self.lossTensor == None or self.gradientStepOp == None:
             print("Model is not defined. Pleas define using genModel before training")
             return
-        obsTensorShape = (None,) + self.env.action_space.shape
-        expertAction = tf.placeholder(
-            dtype=tf.float32, 
-            shape=obsTensorShape,
-            name="expertAction"
-        )
-        loss = tf.losses.mean_squared_error(self.outputTensor, expertAction)
-        gradientStep = tf.train.AdamOptimizer().minimize(loss)
+        print("Training model")
+        
         if self.session == None:
             self.session = tf.session()
 
@@ -143,28 +158,73 @@ class Dagger:
         self.session.run(tf.global_variables_initializer())
         for i in range (epochs):
             losses = []
-            for j in range(len(expertObservations) // batchSize):
-                begin = i * batchSize
+            for j in range(math.ceil(len(expertObservations) // batchSize)):
+                begin = j * batchSize
                 end = min(begin + batchSize, len(expertObservations) - 1)
-                batch_loss, _ = self.session.run([loss, gradientStep], feed_dict={
+                batch_loss, _ = self.session.run([self.lossTensor, self.gradientStepOp], feed_dict={
                     "observation:0" : expertObservations[begin:end],
                     "expertAction:0": expertActions[begin:end]
                 })
                 losses.append(batch_loss)
             print("Epoch " + str(i+1) + " loss: " + str(np.mean(losses)))
 
-    def evaluatePolicy(self):
+    def runPolicy(self, numRollouts, render=False):
+        print("Running policy on environment")
+        env = gym.make(self.task)
+        max_steps = self.env.spec.timestep_limit
 
-        return
+        returns = []
+        observations = []
+        actions = []
+        for i in range(numRollouts):
+            print('iter', i)
+            obs = env.reset()
+            done = False
+            totalr = 0.
+            steps = 0
+            while not done:
+                action = self.getAction([obs])
+                observations.append(obs)
+                actions.append(action)
+                obs, r, done, _ = env.step(action)
+                totalr += r
+                steps += 1
+                if render:
+                    env.render()
+                #if steps % 100 == 0: print("%i/%i"%(steps, max_steps))
+                if steps >= max_steps:
+                    break
+            returns.append(totalr)
+            
+        print('returns', returns)
+        print('mean return', np.mean(returns))
+        print('std of return', np.std(returns))
+
+        policy_data = {'observations': np.array(observations),
+                        'actions': np.array(actions),
+                        "returns" : np.array(returns),
+                        "meanReturn" : np.mean(returns),
+                        "stdReturn" : np.std(returns)}
+    
+        with open(self.policyDataFile, 'wb') as f:
+            pickle.dump(policy_data, f, pickle.HIGHEST_PROTOCOL)
+      
+    def runExpertOnPolicyData(self):
+        print("Running expert on policy data")
+        run_expert.runExpertOnObservations(self.expertPolicyFile, self.policyDataFile, self.task)
 
     def closeSession(self):
         self.session.close()
+    
+    def daggerLoop(self, initialExpertRollouts, loopIterations, policyRolloutsPerIteration, trainingEpochsPerLoop, batchSizePerLoop):
+        self.generateExpertData(initialExpertRollouts)
+        for i in range(loopIterations):
+            self.train(trainingEpochsPerLoop, batchSizePerLoop)
+            self.runPolicy(policyRolloutsPerIteration)
+            self.runExpertOnPolicyData()
 
 if __name__ == "__main__":
-    test = Dagger("Ant-v2")
-    test.train(3, 64)
-    test.closeSession()
-    #expertObservations, expertActions = test.getExpertData()
-    #print(expertObservations.shape)
-    #print(expertActions.shape)
-    
+    antDagger = Dagger("Ant-v2")
+    antDagger.daggerLoop(100, 100, 100, 100, 128)
+    antDagger.closeSession()
+   

@@ -89,3 +89,6 @@ ENV/
 .ropeproject
 
 .DS_Store
+
+hw1/expert_data
+hw1/policy_data
