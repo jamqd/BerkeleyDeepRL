@@ -59,6 +59,7 @@ class Dagger:
         # sets self.outputTensor
         self.genModel(neuronsInHiddenLayer, activationsForHiddenLayer)
         self.session = tf.Session()
+        self.policyAvgReturns = []
     
     def genModel(self, neuronsInHiddenLayer, activationsForHiddenLayer):
         """
@@ -88,14 +89,13 @@ class Dagger:
         outputTensor = tf.layers.dense(
             inputs=x,
             units=np.prod(self.env.action_space.shape),
-            activation=tf.nn.relu,
             name="action"
         )
 
-        obsTensorShape = (None,) + self.env.action_space.shape
+        actionTensorShape = (None,) + self.env.action_space.shape
         expertAction = tf.placeholder(
             dtype=tf.float32, 
-            shape=obsTensorShape,
+            shape=actionTensorShape,
             name="expertAction"
         )
         loss = tf.losses.mean_squared_error(outputTensor, expertAction)
@@ -199,12 +199,13 @@ class Dagger:
         print('returns', returns)
         print('mean return', np.mean(returns))
         print('std of return', np.std(returns))
+        
+        self.policyAvgReturns.append((np.mean(returns), np.std(returns)))
 
-        policy_data = {'observations': np.array(observations),
+        policy_data = {'observations': np.array(observations), 
                         'actions': np.array(actions),
-                        "returns" : np.array(returns),
-                        "meanReturn" : np.mean(returns),
-                        "stdReturn" : np.std(returns)}
+                        "returns" : np.array(self.policyAvgReturns)}
+
     
         with open(self.policyDataFile, 'wb') as f:
             pickle.dump(policy_data, f, pickle.HIGHEST_PROTOCOL)
@@ -215,16 +216,27 @@ class Dagger:
 
     def closeSession(self):
         self.session.close()
+
+    def cloneExpertBehavior(self, initialExpertRollouts, epochs,  batchSize, policyEvaluationRollouts):
+        self.generateExpertData(initialExpertRollouts)
+        self.train(epochs, batchSize)
+        self.runPolicy(policyEvaluationRollouts)
+    
     
     def daggerLoop(self, initialExpertRollouts, loopIterations, policyRolloutsPerIteration, trainingEpochsPerLoop, batchSizePerLoop):
-        self.generateExpertData(initialExpertRollouts)
+        self.cloneExpertBehavior(initialExpertRollouts, trainingEpochsPerLoop,  batchSizePerLoop, policyRolloutsPerIteration)
         for i in range(loopIterations):
-            self.train(trainingEpochsPerLoop, batchSizePerLoop)
-            self.runPolicy(policyRolloutsPerIteration)
+            print("Dagger loop " + str(i+1))
+            if i != 0:
+                self.train(trainingEpochsPerLoop, batchSizePerLoop)
+                self.runPolicy(policyRolloutsPerIteration)
             self.runExpertOnPolicyData()
 
 if __name__ == "__main__":
-    antDagger = Dagger("Ant-v2")
-    antDagger.daggerLoop(100, 100, 100, 100, 128)
-    antDagger.closeSession()
+    tasks = ["Ant-v2", "HalfCheetah-v2", "Hopper-v2", "Humanoid-v2", "Reacher-v2", "Walker2d-v2"]
+    for task in tasks:
+        print(task)
+        dagger = Dagger(task)
+        dagger.daggerLoop(10, 20, 10, 100, 128)
+        dagger.closeSession()
    
