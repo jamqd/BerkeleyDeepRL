@@ -44,6 +44,24 @@ for task in tasks:
         expertRewardsList.append(expertRewards[task])
         expertRewardsSTDList.append(expertRewardsSTD[task])
 
+print(tasks)
+
+print("Expert Rewards")
+print(expertRewardsList)
+print("Expert Rewards STDs")
+print(expertRewardsSTDList)
+
+print("Imitation Rewards")
+print(imitationRewardsList)
+print("Imitation Rewards STDs")
+print(imitationRewardsSTDList)
+
+
+print("Dagger Rewards")
+print(daggerRewardsList)
+print("Dagger Rewards STDs")
+print(daggerRewardsSTDList)
+
 # Plot reward vs task
 plt.figure(figsize=(8,8))
 x_pos = np.arange(len(tasks))
@@ -57,7 +75,7 @@ plt.xlabel("Task")
 plt.ylabel('Mean Reward')
 plt.title('Rewards from Imitation Learning vs Expert by Task')
 plt.legend(loc="best")
-plt.savefig("./report/plots/reportimitationExpertComparison.png")
+plt.savefig("./report/plots/imitationExpertComparison.png")
 
 
 # Plot reward vs number of epochs
@@ -96,6 +114,7 @@ for i in range(len(tasks)):
     # imitation performace plot
     plt.plot(x_sample, np.repeat(imitationRewardsList[i], len(x_sample)), "r", label="Average Imitation Policy Performance")
 
+    plt.xticks([0,2,4,6,8,10,12,14,16,18,20])
     plt.xlabel("Dagger Loop")
     plt.ylabel("Mean Reward")
     plt.title(tasks[i] + " Reward vs Iterations (Dagger)")
@@ -121,8 +140,7 @@ plt.title('Rewards from Imitation Learning vs Dagger vs Expert by Task')
 plt.legend(loc="best")
 plt.savefig("./report/plots/overallComparison.png")
 
-
-plt.show()
+#plt.show()
 
 
 
