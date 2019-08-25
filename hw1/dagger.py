@@ -18,8 +18,9 @@ class Dagger:
         if task in self.supportedTasks:
             self.task = task
             self.expertPolicyFile = "./experts/" + self.task + ".pkl"
-            self.expertDataFile = "./expert_data/" + self.task + ".pkl"
-            self.policyDataFile = "./policy_data/" + self.task + ".pkl"
+            self.expertDataFile = "expert_data/" + self.task + ".pkl"
+            self.policyDataFile = "policy_data/" + self.task + ".pkl"
+            self.filePrefix = ""
         else:
             print("Task %s does not exist" % (task))
             return
@@ -58,7 +59,6 @@ class Dagger:
        
         # sets self.outputTensor
         self.genModel(neuronsInHiddenLayer, activationsForHiddenLayer)
-        self.session = tf.Session()
         self.policyAvgReturns = []
     
     def genModel(self, neuronsInHiddenLayer, activationsForHiddenLayer):
@@ -69,41 +69,44 @@ class Dagger:
 
         if len(neuronsInHiddenLayer) != len(activationsForHiddenLayer):
             print("neuronsInLayer and activationsForLayer dimensions do not match")
-        
-        obsTensorShape = (None, np.prod(self.env.observation_space.shape))
-        obs = tf.placeholder(
-                                dtype=tf.float32, 
-                                shape=obsTensorShape, 
-                                name="observation"
-        )
-        x = obs
-        for i in range(len(neuronsInHiddenLayer)):
-            name = "dense" + str(i) 
-            x = tf.layers.dense(
-                inputs=x, 
-                units=neuronsInHiddenLayer[i], 
-                activation=activationsForHiddenLayer[i],
-                name=name
+        self.graph = tf.Graph()
+        self.session = tf.Session(graph=self.graph)
+        with self.graph.as_default():
+            obsTensorShape = (None, np.prod(self.env.observation_space.shape))
+            obs = tf.placeholder(
+                                    dtype=tf.float32, 
+                                    shape=obsTensorShape, 
+                                    name="observation"
+            )
+            x = obs
+            for i in range(len(neuronsInHiddenLayer)):
+                name = "dense" + str(i) 
+                x = tf.layers.dense(
+                    inputs=x, 
+                    units=neuronsInHiddenLayer[i], 
+                    activation=activationsForHiddenLayer[i],
+                    name=name
+                )
+
+            outputTensor = tf.layers.dense(
+                inputs=x,
+                units=np.prod(self.env.action_space.shape),
+                name="action"
             )
 
-        outputTensor = tf.layers.dense(
-            inputs=x,
-            units=np.prod(self.env.action_space.shape),
-            name="action"
-        )
+            actionTensorShape = (None,) + self.env.action_space.shape
+            expertAction = tf.placeholder(
+                dtype=tf.float32, 
+                shape=actionTensorShape,
+                name="expertAction"
+            )
+            loss = tf.losses.mean_squared_error(outputTensor, expertAction)
+            gradientStep = tf.train.AdamOptimizer().minimize(loss)
 
-        actionTensorShape = (None,) + self.env.action_space.shape
-        expertAction = tf.placeholder(
-            dtype=tf.float32, 
-            shape=actionTensorShape,
-            name="expertAction"
-        )
-        loss = tf.losses.mean_squared_error(outputTensor, expertAction)
-        gradientStep = tf.train.AdamOptimizer().minimize(loss)
-
-        self.outputTensor = outputTensor
-        self.lossTensor = loss
-        self.gradientStepOp = gradientStep
+            self.outputTensor = outputTensor
+            self.lossTensor = loss
+            self.gradientStepOp = gradientStep
+            self.session.run(tf.global_variables_initializer())
 
     def generateExpertData(self, numRollouts=20, render=False):
         print("Generating new expert data")
@@ -134,39 +137,36 @@ class Dagger:
             print("Model is not defined. Pleas define using genModel before training")
             return
         print("Training model")
-        
-        if self.session == None:
-            self.session = tf.session()
 
-        expertObservations, expertActions = self.getExpertData()
-        
-        expertObservations = np.array(expertObservations)
-        expertActions = np.array(expertActions)
+        with self.graph.as_default():
+            expertObservations, expertActions = self.getExpertData()
+            
+            expertObservations = np.array(expertObservations)
+            expertActions = np.array(expertActions)
 
-        expertObservations = np.reshape(expertObservations, (-1, np.prod(self.env.observation_space.shape)))
-        expertActions = np.reshape(expertActions, (-1, np.prod(self.env.action_space.shape)))
+            expertObservations = np.reshape(expertObservations, (-1, np.prod(self.env.observation_space.shape)))
+            expertActions = np.reshape(expertActions, (-1, np.prod(self.env.action_space.shape)))
 
-        indexes = np.arange(len(expertObservations))
-        shuffle = np.random.permutation(indexes)
-        expertObservations = expertObservations[shuffle]
-        expertActions = expertActions[shuffle]
+            indexes = np.arange(len(expertObservations))
+            shuffle = np.random.permutation(indexes)
+            expertObservations = expertObservations[shuffle]
+            expertActions = expertActions[shuffle]
 
-        #split = int(0.8 * len(expertObservations))
+            #split = int(0.8 * len(expertObservations))
 
-        #expertObservationsTrain
- 
-        self.session.run(tf.global_variables_initializer())
-        for i in range (epochs):
-            losses = []
-            for j in range(math.ceil(len(expertObservations) // batchSize)):
-                begin = j * batchSize
-                end = min(begin + batchSize, len(expertObservations) - 1)
-                batch_loss, _ = self.session.run([self.lossTensor, self.gradientStepOp], feed_dict={
-                    "observation:0" : expertObservations[begin:end],
-                    "expertAction:0": expertActions[begin:end]
-                })
-                losses.append(batch_loss)
-            print("Epoch " + str(i+1) + " loss: " + str(np.mean(losses)))
+            #expertObservationsTrain
+    
+            for i in range (epochs):
+                losses = []
+                for j in range(math.ceil(len(expertObservations) // batchSize)):
+                    begin = j * batchSize
+                    end = min(begin + batchSize, len(expertObservations) - 1)
+                    batch_loss, _ = self.session.run([self.lossTensor, self.gradientStepOp], feed_dict={
+                        "observation:0" : expertObservations[begin:end],
+                        "expertAction:0": expertActions[begin:end]
+                    })
+                    losses.append(batch_loss)
+                print("Epoch " + str(i+1) + " loss: " + str(np.mean(losses)))
 
     def runPolicy(self, numRollouts, render=False):
         print("Running policy on environment")
@@ -207,24 +207,36 @@ class Dagger:
                         "returns" : np.array(self.policyAvgReturns)}
 
     
-        with open(self.policyDataFile, 'wb') as f:
+        with open(self.filePrefix + self.policyDataFile, 'wb') as f:
             pickle.dump(policy_data, f, pickle.HIGHEST_PROTOCOL)
       
     def runExpertOnPolicyData(self):
         print("Running expert on policy data")
-        run_expert.runExpertOnObservations(self.expertPolicyFile, self.policyDataFile, self.task)
+        run_expert.runExpertOnObservations(self.expertPolicyFile, self.filePrefix + self.policyDataFile, self.task)
 
     def closeSession(self):
         self.session.close()
 
     def cloneExpertBehavior(self, initialExpertRollouts, epochs,  batchSize, policyEvaluationRollouts):
+        self.filePrefix = "./imitation_"
         self.generateExpertData(initialExpertRollouts)
-        self.train(epochs, batchSize)
-        self.runPolicy(policyEvaluationRollouts)
+
+        # to save performance after every epoch
+
+
+        for i in range(epochs):
+            print("Imitation Learning epoch " + str(i+1))
+            self.train(1, batchSize)
+            self.runPolicy(policyEvaluationRollouts)
     
     
     def daggerLoop(self, initialExpertRollouts, loopIterations, policyRolloutsPerIteration, trainingEpochsPerLoop, batchSizePerLoop):
-        self.cloneExpertBehavior(initialExpertRollouts, trainingEpochsPerLoop,  batchSizePerLoop, policyRolloutsPerIteration)
+        self.filePrefix = "./dagger_"
+
+        self.generateExpertData(initialExpertRollouts)
+        self.train(trainingEpochsPerLoop, batchSizePerLoop)
+        self.runPolicy(policyRolloutsPerIteration)
+
         for i in range(loopIterations):
             print("Dagger loop " + str(i+1))
             if i != 0:
@@ -234,9 +246,17 @@ class Dagger:
 
 if __name__ == "__main__":
     tasks = ["Ant-v2", "HalfCheetah-v2", "Hopper-v2", "Humanoid-v2", "Reacher-v2", "Walker2d-v2"]
+
+
     for task in tasks:
         print(task)
         dagger = Dagger(task)
-        dagger.daggerLoop(10, 20, 10, 100, 128)
+        dagger.cloneExpertBehavior(10, 50, 128, 5)
+        dagger.closeSession()
+
+    for task in tasks:
+        print(task)
+        dagger = Dagger(task)
+        dagger.daggerLoop(10, 20, 5, 50, 128)
         dagger.closeSession()
    

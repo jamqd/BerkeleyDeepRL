@@ -35,7 +35,7 @@ def runExpertOnObservations(expertPolicyFile, observationsFile, envName, batchSi
     policy_fn = load_policy.load_policy(expertPolicyFile)
     print('loaded and built')
 
-    with open(os.path.join('policy_data', envName + '.pkl'), 'rb') as f:
+    with open(os.path.join(observationsFile), 'rb') as f:
         policy_data = pickle.load(f)
     
     observations = np.array(policy_data["observations"])
