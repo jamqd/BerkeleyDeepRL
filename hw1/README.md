@@ -1,4 +1,11 @@
 # CS294-112 HW 1: Imitation Learning
+To reproduce run the following:
+
+```
+python dagger.py
+python plotPerformance.py
+
+```
 
 Dependencies:
  * Python **3.5**
@@ -6,6 +13,7 @@ Dependencies:
  * TensorFlow version **1.10.5**
  * MuJoCo version **1.50** and mujoco-py **1.50.1.56**
  * OpenAI Gym version **0.10.5**
+ * matplotlib
 
 Once Python **3.5** is installed, you can install the remaining dependencies using `pip install -r requirements.txt`.
 
