@@ -4,7 +4,6 @@ To reproduce run the following:
 ```
 python dagger.py
 python plotPerformance.py
-
 ```
 
 Dependencies:
