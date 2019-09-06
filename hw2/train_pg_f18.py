@@ -64,8 +64,6 @@ class Agent(object):
         super(Agent, self).__init__()
         self.ob_dim = computation_graph_args['ob_dim']
         self.ac_dim = computation_graph_args['ac_dim']
-        print("action dimension")
-        print(self.ac_dim)
         self.discrete = computation_graph_args['discrete']
 
         self.size = computation_graph_args['size']
