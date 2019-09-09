@@ -107,9 +107,11 @@ INPUT ./plots/Reacher-v2Dagger.png
 INPUT /Users/johndang/git/BerkeleyDeepRL/hw1/report/./plots/Walker2d-v2Dagger.png
 INPUT ./plots/Walker2d-v2Dagger.png
 INPUT ./plots/Walker2d-v2Dagger.png
+INPUT /usr/local/texlive/2018/texmf-dist/fonts/tfm/public/cm/cmtt10.tfm
 INPUT /Users/johndang/git/BerkeleyDeepRL/hw1/report/report.aux
 INPUT /usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb
 INPUT /usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb
 INPUT /usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb
 INPUT /usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb
 INPUT /usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb
+INPUT /usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb

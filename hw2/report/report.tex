@@ -10,7 +10,7 @@
 \begin{document}
     \maketitle
 
-    \section{Problem 1: Usage of State-Dependent Baseline is Unbiased}
+    \section{State-Dependent Baseline is Unbiased}
 
     \subsection{Part A}
     We wish to show that subtracting a state-dependent baseline $b(s_t)$ 
@@ -30,11 +30,6 @@
        \sum_{t=1}^{T}{ E_{(s_t,a_t)\sim p_\theta(s_t,a_t)} \left[ \nabla_\theta \log \pi_\theta(a_t|s_t) b(s_t)\right]} = 0
     \end{equation*}
 
-    % By conditional probability we have 
-
-    % \begin{equation*}
-    %     p_\theta(\tau) =  p_\theta(s_t,a_t)p_\theta(\tau/s_t,a_t|s_t,a_t)
-    % \end{equation*}
 
     We can equivalently show this by showing that the  expectation term is zero for all timesteps using the law of iterated expectations
 
@@ -126,4 +121,77 @@
     Again, we have shown that subtracting a state-dependent baseline is unbiased
     in expectation.
 
+    \section{Experiments}
+
+    \subsection{Vanilla Policy Gradient}
+
+    \subsubsection{Small Batch Performance (CartPole-v0)}
+    \begin{center}
+        \noindent\includegraphics[scale=0.29]{smallBatchCartpole}
+    \end{center}
+
+    \subsubsection{Large Batch Performance (CartPole-v0)}
+    \begin{center}
+        \noindent\includegraphics[scale=0.29]{largeBatchCartpole}
+    \end{center}
+
+    \subsubsection{Discussion}
+    Using reward to go inmproved performance and reduced variance for both 
+    small and large batch experiments. Advantage-centering does improve performance.
+    Using a larger batch size reduces varaince and speeds up learning for the 
+    first few iterations. Both batch sizes were able to converge to near optimal 
+    performance, with the exception of the experiment with no variance reduction 
+    techniques. In this case, the larger batch size improved performance and reduced 
+    variance significantly.
+
+    \subsection{Hyperparameter Tuning (InvertedPendulum-v2)}
+    Using a batch size of 400 and learning rate of 0.02, resulted in reaching 
+    optimal performance, while minimizing batch size and maximizing learning rate.
+    These hyperparameter values were found by grid search over 
+    batch sizes $[300, 400, 500]$ and learning rates $[0.03, 0.02, 0.01]$.
+
+    \begin{center}
+        \noindent\includegraphics[scale=0.3]{hyperParamsInvertedPendulum}
+    \end{center}
+
+    \subsection{Policy Gradient with Baselines}
+
+    \subsubsection{Performance (LunarLander-v2)}
+    As expected, using policy gradients with a neural network baseline was 
+    able to achieve desired performance.
+    \begin{center}
+        \noindent\includegraphics[scale=0.3]{lunarLander}
+    \end{center}
+
+    \subsubsection{Hyperparameter Tuning (HalfCheetah-v2)}
+    In this experiment, using a higher learning rate results in better performance.
+    Increasing batch size also generally improved performance or at least 
+    maintained performance. Based on this experiment
+    we run the remaining experiments with batch size 50000 and learning rate 0.02.
+
+    \begin{center}
+        \noindent\includegraphics[scale=0.3]{hyperParamsCheetah}
+    \end{center}
+
+    \subsubsection{ Performance (HalfCheetah-v2)}
+    As shown before using reward to go achieves better performance and lower variance. Using a baseline with 
+    reward to go also achieves better performance and significantlt reduces varaince. Using a baseline alone 
+    without reward to go performs poorly.
+    \begin{center}
+        \noindent\includegraphics[scale=0.3]{cheetah}
+    \end{center}
+
+    \section{Scripts Used}
+
+    To reproduce these results run the following commands from the hw2 directory.
+
+    \begin{verbatim}
+        ./p4.sh
+        ./p5.sh
+        python train_pg_f18.py LunarLanderContinuous-v2 -ep 1000 --discount 0.99 -n \
+            100 -e 3 -l 2 -s 64 -b 40000 -lr 0.005 -rtg --nn_baseline --exp_name \
+            ll_b40000_r0.005
+        ./p8HyperParamSearch.sh
+        ./p8.sh
+    \end{verbatim}
 \end{document}

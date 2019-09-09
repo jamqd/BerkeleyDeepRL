@@ -12,6 +12,9 @@ import time
 import inspect
 from multiprocessing import Process
 
+# throws error when divide by zero
+np.seterr(all='raise')
+
 #============================================================================================#
 # Utilities
 #============================================================================================#
@@ -85,8 +88,8 @@ class Agent(object):
         self.sess.__enter__() # equivalent to `with self.sess:`
         tf.global_variables_initializer().run() #pylint: disable=E1101
         # for debugging 
-        # import datetime
-        # writer = tf.summary.FileWriter('./tensorboard_logs/' + str(datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")), self.sess.graph)
+        import datetime
+        writer = tf.summary.FileWriter('./tensorboard_logs/' + str(datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")), self.sess.graph)
 
     #========================================================================================#
     #                           ----------PROBLEM 2----------
@@ -438,7 +441,11 @@ class Agent(object):
             b_n = self.sess.run(self.baseline_prediction, feed_dict={
                 self.sy_ob_no : ob_no
             })
-            b_n = (b_n - np.mean(b_n)) / np.std(b_n)
+            try: 
+                z = (b_n - np.mean(b_n)) / np.std(b_n)
+            except:
+                z = np.zeros(len(b_n))
+            b_n = z * np.std(q_n) + np.mean(q_n)
             adv_n = q_n - b_n
         else:
             adv_n = q_n.copy()
@@ -472,7 +479,10 @@ class Agent(object):
         if self.normalize_advantages:
             # On the next line, implement a trick which is known empirically to reduce variance
             # in policy gradient methods: normalize adv_n to have mean zero and std=1.
-            adv_n = (adv_n - np.mean(adv_n)) / np.std(adv_n)
+            try:
+                adv_n = (adv_n - np.mean(adv_n)) / np.std(adv_n)
+            except:
+                adv_n = np.zeros(len(adv_n))
         return q_n, adv_n
 
     def update_parameters(self, ob_no, ac_na, q_n, adv_n):
@@ -506,11 +516,16 @@ class Agent(object):
             # Hint #bl2: Instead of trying to target raw Q-values directly, rescale the 
             # targets to have mean zero and std=1. (Goes with Hint #bl1 in 
             # Agent.compute_advantage.)
-            target_n = (q_n - np.mean(q_n)) / np.std(q_n)
-            self.sess.run(self.baseline_update_op, feed_dict={
-                self.sy_ob_no : ob_no,
-                self.sy_target_n : target_n
-            })
+            try:
+                target_n = (q_n - np.mean(q_n)) / np.std(q_n)
+            except:
+                target_n = np.zeros(len(q_n))
+
+           for i in range(100):
+                self.sess.run(self.baseline_update_op, feed_dict={
+                    self.sy_ob_no : ob_no,
+                    self.sy_target_n : target_n
+                })
 
         #====================================================================================#
         #                           ----------PROBLEM 3----------
