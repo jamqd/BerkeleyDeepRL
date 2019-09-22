@@ -1,7 +1,7 @@
 # Fdb version 3
-["pdflatex"] 1567995344 "/Users/johndang/git/BerkeleyDeepRL/hw2/report/report.tex" "/Users/johndang/git/BerkeleyDeepRL/hw2/report/report.pdf" "report" 1567995346
-  "/Users/johndang/git/BerkeleyDeepRL/hw2/report/report.aux" 1567995346 1463 e346cb516476befb770ebfe406ff6555 ""
-  "/Users/johndang/git/BerkeleyDeepRL/hw2/report/report.tex" 1567995344 7668 0c2723df75ae17c4617f9927a5a91faa ""
+["pdflatex"] 1568137468 "/Users/johndang/git/BerkeleyDeepRL/hw2/report/report.tex" "/Users/johndang/git/BerkeleyDeepRL/hw2/report/report.pdf" "report" 1568137470
+  "/Users/johndang/git/BerkeleyDeepRL/hw2/report/report.aux" 1568137470 1463 e346cb516476befb770ebfe406ff6555 ""
+  "/Users/johndang/git/BerkeleyDeepRL/hw2/report/report.tex" 1568137467 7577 38dcb179bd06eb06844786e49bdb26fe ""
   "/usr/local/texlive/2018/texmf-dist/fonts/map/fontname/texfonts.map" 1511824771 3332 103109f5612ad95229751940c61aada0 ""
   "/usr/local/texlive/2018/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1480098698 1004 54797486969f23fa377b128694d548df ""
   "/usr/local/texlive/2018/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex8.tfm" 1480098698 988 bdf658c3bfc2d96d3c8b02cfc1c94c20 ""
@@ -70,11 +70,11 @@
   "plots/largeBatchCartpole.png" 1567713890 167236 f459f59197ba456f319be07bfc2cf4b1 ""
   "plots/lunarLander.png" 1567959910 206239 37b83541edee8fe37a648f0305247b5c ""
   "plots/smallBatchCartpole.png" 1567713466 249286 db0f507c72d59e585aa84941a5356e07 ""
-  "report.aux" 1567995346 1463 e346cb516476befb770ebfe406ff6555 ""
-  "report.tex" 1567995344 7668 0c2723df75ae17c4617f9927a5a91faa ""
+  "report.aux" 1568137470 1463 e346cb516476befb770ebfe406ff6555 ""
+  "report.tex" 1568137467 7577 38dcb179bd06eb06844786e49bdb26fe ""
   (generated)
-  "report.log"
   "report.pdf"
+  "/Users/johndang/git/BerkeleyDeepRL/hw2/report/report.log"
+  "report.log"
   "/Users/johndang/git/BerkeleyDeepRL/hw2/report/report.pdf"
   "report.aux"
-  "/Users/johndang/git/BerkeleyDeepRL/hw2/report/report.log"

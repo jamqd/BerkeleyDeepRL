@@ -19,6 +19,10 @@ np.seterr(all='raise')
 # Utilities
 #============================================================================================#
 
+def normalize(data, mean=0.0, std=1.0):
+    z = (data-np.mean(data)) / (np.std(data) + 1e-8)
+    return z * std + mean
+
 #========================================================================================#
 #                           ----------PROBLEM 2----------
 #========================================================================================#  
@@ -41,10 +45,23 @@ def build_mlp(input_placeholder, output_size, scope, n_layers, size, activation=
         Hint: use tf.layers.dense    
     """
     with tf.variable_scope(scope):
-        output_placeholder = tf.layers.dense(input_placeholder, size, activation=activation)
+        initializer = None
+        if activation == tf.tanh or activation == tf.sigmoid:
+            initializer = tf.contrib.layers.xavier_initializer()
+        elif activation == tf.nn.relu or activation == tf.nn.leaky_relu:
+            initializer = tf.initializers.he_normal()
+
+        output_placeholder = tf.layers.dense(input_placeholder, size, activation=activation, kernel_initializer=initializer)
         for i in range(n_layers - 1):
-            output_placeholder = tf.layers.dense(output_placeholder, size, activation=activation)
-        output_placeholder = tf.layers.dense(output_placeholder, output_size, activation=output_activation)
+            output_placeholder = tf.layers.dense(output_placeholder, size, activation=activation, kernel_initializer=initializer)
+
+        output_initializer = None
+        if output_activation == tf.tanh or output_activation == tf.sigmoid:
+            output_initializer = tf.contrib.layers.xavier_initializer()
+        elif output_activation == tf.nn.relu or output_activation == tf.nn.leaky_relu:
+            output_initializer = tf.initializers.he_normal()
+        
+        output_placeholder = tf.layers.dense(output_placeholder, output_size, activation=output_activation, kernel_initializer=output_initializer)
         return output_placeholder
 
 def pathlength(path):
@@ -144,10 +161,10 @@ class Agent(object):
                 pass in self.size for the 'size' argument.
         """
         if self.discrete:
-            sy_logits_na =  build_mlp(sy_ob_no, self.ac_dim , "policy", self.n_layers, self.size, activation=tf.nn.relu, output_activation=None)
+            sy_logits_na =  build_mlp(sy_ob_no, self.ac_dim , "policy", self.n_layers, self.size)
             return sy_logits_na
         else:
-            sy_mean = build_mlp(sy_ob_no, self.ac_dim , "policy", self.n_layers, self.size, activation=tf.nn.relu, output_activation=None)
+            sy_mean = build_mlp(sy_ob_no, self.ac_dim , "policy", self.n_layers, self.size)
             sy_logstd = tf.Variable(np.random.rand(self.ac_dim), trainable=True, dtype=tf.float32, name="logstd")
             return (sy_mean, sy_logstd)
 
@@ -441,11 +458,7 @@ class Agent(object):
             b_n = self.sess.run(self.baseline_prediction, feed_dict={
                 self.sy_ob_no : ob_no
             })
-            try: 
-                z = (b_n - np.mean(b_n)) / np.std(b_n)
-            except:
-                z = np.zeros(len(b_n))
-            b_n = z * np.std(q_n) + np.mean(q_n)
+            b_n = normalize(b_n, np.mean(q_n), np.std(q_n))
             adv_n = q_n - b_n
         else:
             adv_n = q_n.copy()
@@ -479,10 +492,7 @@ class Agent(object):
         if self.normalize_advantages:
             # On the next line, implement a trick which is known empirically to reduce variance
             # in policy gradient methods: normalize adv_n to have mean zero and std=1.
-            try:
-                adv_n = (adv_n - np.mean(adv_n)) / np.std(adv_n)
-            except:
-                adv_n = np.zeros(len(adv_n))
+            adv_n = normalize(adv_n)
         return q_n, adv_n
 
     def update_parameters(self, ob_no, ac_na, q_n, adv_n):
@@ -516,16 +526,11 @@ class Agent(object):
             # Hint #bl2: Instead of trying to target raw Q-values directly, rescale the 
             # targets to have mean zero and std=1. (Goes with Hint #bl1 in 
             # Agent.compute_advantage.)
-            try:
-                target_n = (q_n - np.mean(q_n)) / np.std(q_n)
-            except:
-                target_n = np.zeros(len(q_n))
-
-           for i in range(100):
-                self.sess.run(self.baseline_update_op, feed_dict={
-                    self.sy_ob_no : ob_no,
-                    self.sy_target_n : target_n
-                })
+            target_n = normalize(q_n)
+            self.sess.run(self.baseline_update_op, feed_dict={
+                self.sy_ob_no : ob_no,
+                self.sy_target_n : target_n
+            })
 
         #====================================================================================#
         #                           ----------PROBLEM 3----------
